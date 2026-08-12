@@ -1,0 +1,60 @@
+name: AWS EKS Terraform CI
+
+on:
+  pull_request:
+    paths:
+      - "aws-eks-platform-reference/terraform/**"
+      - ".github/workflows/aws-eks-terraform-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "aws-eks-platform-reference/terraform/**"
+      - ".github/workflows/aws-eks-terraform-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Format, lint, validate, and scan
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: aws-eks-platform-reference/terraform/environments/dev
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.14.6"
+
+      - name: Terraform format check
+        run: terraform fmt -check -recursive ../..
+
+      - name: Terraform init without backend
+        run: terraform init -backend=false -input=false
+
+      - name: Terraform validate
+        run: terraform validate -no-color
+
+      - name: Set up TFLint
+        uses: terraform-linters/setup-tflint@v6
+
+      - name: Initialize TFLint plugins
+        run: tflint --init
+
+      - name: Run TFLint
+        run: tflint --recursive --chdir=../..
+
+      - name: Scan Terraform configuration with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          scan-ref: aws-eks-platform-reference/terraform
+          severity: HIGH,CRITICAL
+          exit-code: "1"
