@@ -34,3 +34,22 @@ module "networking" {
     Owner = "platform-engineering"
   }
 }
+
+module "eks" {
+  source = "../../modules/eks"
+
+  name                       = "portfolio-eks-dev"
+  kubernetes_version         = "1.33"
+  private_subnet_ids         = module.networking.private_subnet_ids
+  enable_public_endpoint     = false
+  node_instance_types        = ["t3.medium"]
+  capacity_type              = "ON_DEMAND"
+  desired_size               = 2
+  min_size                   = 2
+  max_size                   = 4
+
+  tags = {
+    Environment = "dev"
+    Owner       = "platform-engineering"
+  }
+}
