@@ -28,6 +28,17 @@ variable "private_subnet_cidrs" {
   type        = list(string)
 }
 
+variable "nat_gateway_mode" {
+  description = "NAT topology for private subnets: none, single, or per_az."
+  type        = string
+  default     = "none"
+
+  validation {
+    condition     = contains(["none", "single", "per_az"], var.nat_gateway_mode)
+    error_message = "nat_gateway_mode must be one of: none, single, per_az."
+  }
+}
+
 variable "tags" {
   description = "Additional tags applied to all resources."
   type        = map(string)
