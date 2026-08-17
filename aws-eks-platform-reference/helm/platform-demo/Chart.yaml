@@ -1,0 +1,6 @@
+apiVersion: v2
+name: platform-demo
+description: Production-style demo workload for the AWS EKS platform reference
+version: 0.1.0
+appVersion: "1.0.0"
+type: application
