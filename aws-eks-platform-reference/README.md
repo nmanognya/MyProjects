@@ -13,30 +13,32 @@ A production-style portfolio reference architecture demonstrating how to provisi
 
 ## Current foundation
 
-The Terraform layer currently includes multi-AZ VPC networking, configurable NAT topology, private EKS worker nodes, private-by-default Kubernetes API access, EKS control-plane logging, KMS envelope encryption for Kubernetes Secrets, managed node-group scaling, S3 remote-state configuration, and CI validation/security gates.
+The Terraform layer includes multi-AZ VPC networking, configurable NAT topology, private EKS worker nodes, private-by-default Kubernetes API access, EKS control-plane logging, KMS envelope encryption for Kubernetes Secrets, managed node-group scaling, S3 remote-state configuration, and CI validation/security gates.
+
+The Helm workload layer now demonstrates a hardened non-root deployment, readiness/liveness probes, resource requests and limits, rolling-update controls, a PodDisruptionBudget, CPU-based HPA behavior, a dedicated ServiceAccount with token automount disabled, strict Helm linting, manifest rendering, and Trivy configuration scanning.
 
 Operational design notes:
 
 - [Networking and egress tradeoffs](./docs/networking.md)
 - [Terraform state management, locking, and recovery](./docs/state-management.md)
+- [Workload reliability, scaling, and security controls](./docs/workload-reliability.md)
 
 ## Project structure
 
 ```text
 aws-eks-platform-reference/
-├── app/
 ├── terraform/
 │   ├── modules/
 │   │   ├── networking/
 │   │   └── eks/
 │   └── environments/
-│       ├── dev/
-│       ├── staging/
-│       └── prod/
+│       └── dev/
 ├── helm/
 │   └── platform-demo/
+│       ├── Chart.yaml
+│       ├── values.yaml
+│       └── templates/
 ├── docs/
-├── scripts/
 └── README.md
 ```
 
@@ -46,4 +48,4 @@ This repository is a portfolio project and reference architecture. It does not c
 
 ## Next implementation slice
 
-Add a Helm-managed Kubernetes workload with readiness/liveness probes, resource requests and limits, PodDisruptionBudget, and HorizontalPodAutoscaler configuration.
+Add workload identity with least-privilege AWS permissions, then add application/platform observability and controlled deployment/rollback examples.
