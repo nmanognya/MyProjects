@@ -13,15 +13,18 @@ A production-style portfolio reference architecture demonstrating how to provisi
 
 ## Current foundation
 
-The Terraform layer includes multi-AZ VPC networking, configurable NAT topology, private EKS worker nodes, private-by-default Kubernetes API access, EKS control-plane logging, KMS envelope encryption for Kubernetes Secrets, managed node-group scaling, S3 remote-state configuration, and CI validation/security gates.
+The Terraform layer includes multi-AZ VPC networking, configurable NAT topology, private EKS worker nodes, private-by-default Kubernetes API access, EKS control-plane logging, KMS envelope encryption for Kubernetes Secrets, managed node-group scaling, S3 remote-state configuration, EKS Pod Identity, and CI validation/security gates.
 
-The Helm workload layer now demonstrates a hardened non-root deployment, readiness/liveness probes, resource requests and limits, rolling-update controls, a PodDisruptionBudget, CPU-based HPA behavior, a dedicated ServiceAccount with token automount disabled, strict Helm linting, manifest rendering, and Trivy configuration scanning.
+The Helm workload layer demonstrates a hardened non-root deployment, readiness/liveness probes, resource requests and limits, rolling-update controls, a PodDisruptionBudget, CPU-based HPA behavior, a dedicated ServiceAccount with token automount disabled, strict Helm linting, manifest rendering, and Trivy configuration scanning.
+
+The demo workload identity maps the `default/platform-demo` ServiceAccount to a dedicated IAM role and limits `cloudwatch:PutMetricData` to the `Portfolio/EKSPlatformDemo` custom metric namespace. No static AWS credentials are committed or mounted into the workload.
 
 Operational design notes:
 
 - [Networking and egress tradeoffs](./docs/networking.md)
 - [Terraform state management, locking, and recovery](./docs/state-management.md)
 - [Workload reliability, scaling, and security controls](./docs/workload-reliability.md)
+- [EKS Pod Identity and least-privilege workload AWS access](./docs/workload-identity.md)
 
 ## Project structure
 
@@ -30,7 +33,8 @@ aws-eks-platform-reference/
 ├── terraform/
 │   ├── modules/
 │   │   ├── networking/
-│   │   └── eks/
+│   │   ├── eks/
+│   │   └── workload-identity/
 │   └── environments/
 │       └── dev/
 ├── helm/
@@ -48,4 +52,4 @@ This repository is a portfolio project and reference architecture. It does not c
 
 ## Next implementation slice
 
-Add workload identity with least-privilege AWS permissions, then add application/platform observability and controlled deployment/rollback examples.
+Add application/platform observability and alerting, then demonstrate a controlled deployment and rollback strategy.
