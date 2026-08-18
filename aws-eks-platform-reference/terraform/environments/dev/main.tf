@@ -53,3 +53,20 @@ module "eks" {
     Owner       = "platform-engineering"
   }
 }
+
+module "platform_demo_identity" {
+  source = "../../modules/workload-identity"
+
+  cluster_name          = module.eks.cluster_name
+  namespace             = "default"
+  service_account_name  = "platform-demo"
+  cloudwatch_namespace  = "Portfolio/EKSPlatformDemo"
+
+  tags = {
+    Environment = "dev"
+    Owner       = "platform-engineering"
+    Workload    = "platform-demo"
+  }
+
+  depends_on = [module.eks]
+}
