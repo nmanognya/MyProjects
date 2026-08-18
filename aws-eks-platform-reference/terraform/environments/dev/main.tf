@@ -57,10 +57,10 @@ module "eks" {
 module "platform_demo_identity" {
   source = "../../modules/workload-identity"
 
-  cluster_name          = module.eks.cluster_name
-  namespace             = "default"
-  service_account_name  = "platform-demo"
-  cloudwatch_namespace  = "Portfolio/EKSPlatformDemo"
+  cluster_name         = module.eks.cluster_name
+  namespace            = "default"
+  service_account_name = "platform-demo"
+  cloudwatch_namespace = "Portfolio/EKSPlatformDemo"
 
   tags = {
     Environment = "dev"
