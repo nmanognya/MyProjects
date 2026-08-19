@@ -59,3 +59,11 @@ serviceAccount:
   create: true
   name: platform-demo
   automountServiceAccountToken: false
+
+observability:
+  prometheusRule:
+    enabled: false
+    labels: {}
+    availabilityFor: 10m
+    restartWindow: 15m
+    restartThreshold: 3
