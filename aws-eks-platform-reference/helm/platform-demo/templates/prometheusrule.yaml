@@ -1,0 +1,37 @@
+{{- if .Values.observability.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ .Release.Name }}-platform-alerts
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- with .Values.observability.prometheusRule.labels }}
+{{ toYaml . | indent 4 }}
+{{- end }}
+spec:
+  groups:
+    - name: {{ .Release.Name }}.platform.rules
+      rules:
+        - alert: PlatformDemoDeploymentUnavailable
+          expr: |
+            kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="{{ .Release.Name }}"}
+              < kube_deployment_spec_replicas{namespace="{{ .Release.Namespace }}",deployment="{{ .Release.Name }}"}
+          for: {{ .Values.observability.prometheusRule.availabilityFor }}
+          labels:
+            severity: warning
+            service: {{ .Release.Name }}
+          annotations:
+            summary: "{{ .Release.Name }} has fewer available replicas than desired"
+            description: "The deployment has remained below its desired replica count for {{ .Values.observability.prometheusRule.availabilityFor }}."
+        - alert: PlatformDemoContainerRestarting
+          expr: |
+            increase(kube_pod_container_status_restarts_total{namespace="{{ .Release.Namespace }}",container="{{ .Chart.Name }}"}[{{ .Values.observability.prometheusRule.restartWindow }}])
+              > {{ .Values.observability.prometheusRule.restartThreshold }}
+          labels:
+            severity: warning
+            service: {{ .Release.Name }}
+          annotations:
+            summary: "{{ .Release.Name }} containers are restarting repeatedly"
+            description: "A workload container restarted more than {{ .Values.observability.prometheusRule.restartThreshold }} times within {{ .Values.observability.prometheusRule.restartWindow }}."
+{{- end }}
