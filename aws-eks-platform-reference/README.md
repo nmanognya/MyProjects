@@ -19,12 +19,15 @@ The Helm workload layer demonstrates a hardened non-root deployment, readiness/l
 
 The demo workload identity maps the `default/platform-demo` ServiceAccount to a dedicated IAM role and limits `cloudwatch:PutMetricData` to the `Portfolio/EKSPlatformDemo` custom metric namespace. No static AWS credentials are committed or mounted into the workload.
 
+The observability layer can optionally create Prometheus Operator alert rules for sustained deployment replica shortfall and bursty container restarts using kube-state-metrics signals. It is disabled by default so the chart remains installable without Prometheus Operator CRDs, and it intentionally does not claim application metrics that the current nginx demo does not expose.
+
 Operational design notes:
 
 - [Networking and egress tradeoffs](./docs/networking.md)
 - [Terraform state management, locking, and recovery](./docs/state-management.md)
 - [Workload reliability, scaling, and security controls](./docs/workload-reliability.md)
 - [EKS Pod Identity and least-privilege workload AWS access](./docs/workload-identity.md)
+- [Prometheus platform alerting, dependencies, and limitations](./docs/observability.md)
 
 ## Project structure
 
@@ -52,4 +55,4 @@ This repository is a portfolio project and reference architecture. It does not c
 
 ## Next implementation slice
 
-Add application/platform observability and alerting, then demonstrate a controlled deployment and rollback strategy.
+Demonstrate a controlled deployment and rollback strategy, then evolve the demo into an instrumented workload before adding application-level ServiceMonitor/SLO examples.
