@@ -17,8 +17,15 @@ permissions:
 
 jobs:
   validate:
-    name: Lint, render, and scan Helm chart
+    name: Validate ${{ matrix.environment }} Helm release
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        environment:
+          - dev
+          - staging
+          - prod
 
     steps:
       - name: Checkout repository
@@ -29,19 +36,23 @@ jobs:
         with:
           version: v3.20.2
 
-      - name: Lint chart
-        run: helm lint aws-eks-platform-reference/helm/platform-demo --strict
+      - name: Lint chart with environment values
+        run: |
+          helm lint aws-eks-platform-reference/helm/platform-demo \
+            --strict \
+            --values aws-eks-platform-reference/helm/platform-demo/values-${{ matrix.environment }}.yaml
 
-      - name: Render Kubernetes manifests
+      - name: Render environment manifests
         run: |
           helm template platform-demo aws-eks-platform-reference/helm/platform-demo \
             --namespace platform-demo \
-            > aws-eks-platform-reference/helm/rendered.yaml
+            --values aws-eks-platform-reference/helm/platform-demo/values-${{ matrix.environment }}.yaml \
+            > aws-eks-platform-reference/helm/rendered-${{ matrix.environment }}.yaml
 
       - name: Scan rendered Kubernetes manifests with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: config
-          scan-ref: aws-eks-platform-reference/helm/rendered.yaml
+          scan-ref: aws-eks-platform-reference/helm/rendered-${{ matrix.environment }}.yaml
           severity: HIGH,CRITICAL
           exit-code: "1"
