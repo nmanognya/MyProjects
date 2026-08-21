@@ -15,13 +15,15 @@ A production-style portfolio reference architecture demonstrating how to provisi
 
 The Terraform layer includes multi-AZ VPC networking, configurable NAT topology, private EKS worker nodes, private-by-default Kubernetes API access, EKS control-plane logging, KMS envelope encryption for Kubernetes Secrets, managed node-group scaling, S3 remote-state configuration, EKS Pod Identity, and CI validation/security gates.
 
+The workload is now a small Flask service rather than an nginx placeholder. It provides dedicated liveness/readiness endpoints and exposes real Prometheus request-count and request-latency metrics. Its container runs as an unprivileged UID behind Gunicorn, and application CI runs unit tests, builds the image, and scans it with Trivy before changes can merge.
+
 The Helm workload layer demonstrates a hardened non-root deployment, readiness/liveness probes, resource requests and limits, rolling-update controls, a PodDisruptionBudget, CPU-based HPA behavior, a dedicated ServiceAccount with token automount disabled, strict Helm linting, manifest rendering, and Trivy configuration scanning.
 
 Environment-specific Helm overlays model dev, staging, and production release behavior without duplicating the chart. CI renders and scans every overlay, while the deployment helper requires an explicit immutable image tag and uses Helm atomic/wait controls. A separate rollback helper restores an explicit Helm revision rather than hiding release history.
 
 The demo workload identity maps the `default/platform-demo` ServiceAccount to a dedicated IAM role and limits `cloudwatch:PutMetricData` to the `Portfolio/EKSPlatformDemo` custom metric namespace. No static AWS credentials are committed or mounted into the workload.
 
-The observability layer can optionally create Prometheus Operator alert rules for sustained deployment replica shortfall and bursty container restarts using kube-state-metrics signals. It is disabled by default so the chart remains installable without Prometheus Operator CRDs, and it intentionally does not claim application metrics that the current nginx demo does not expose.
+The observability layer can optionally create a Prometheus Operator `ServiceMonitor` for the application's `/metrics` endpoint and `PrometheusRule` resources for platform-level availability/restart signals. Prometheus Operator resources remain opt-in so the chart can still render without those CRDs installed. The repository does not claim live traffic or deployed monitoring infrastructure.
 
 Operational design notes:
 
@@ -30,12 +32,18 @@ Operational design notes:
 - [Workload reliability, scaling, and security controls](./docs/workload-reliability.md)
 - [EKS Pod Identity and least-privilege workload AWS access](./docs/workload-identity.md)
 - [Prometheus platform alerting, dependencies, and limitations](./docs/observability.md)
+- [Application metrics and ServiceMonitor design](./docs/application-observability.md)
 - [Release promotion, deployment safety, and rollback strategy](./docs/release-strategy.md)
 
 ## Project structure
 
 ```text
 aws-eks-platform-reference/
+├── app/
+│   ├── app.py
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── test_app.py
 ├── terraform/
 │   ├── modules/
 │   │   ├── networking/
@@ -64,4 +72,4 @@ This repository is a portfolio project and reference architecture. It does not c
 
 ## Next implementation slice
 
-Evolve the demo into a small instrumented application before adding application-level ServiceMonitor, RED metrics, SLOs, and error-budget examples.
+Use the application-level request/error/latency metrics to add a small SLO and error-budget example, plus post-deployment smoke checks that validate application behavior rather than only Kubernetes readiness.
