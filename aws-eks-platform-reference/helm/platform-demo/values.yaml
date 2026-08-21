@@ -1,8 +1,8 @@
 replicaCount: 2
 
 image:
-  repository: nginxinc/nginx-unprivileged
-  tag: "1.27-alpine"
+  repository: ghcr.io/nmanognya/platform-demo
+  tag: "example"
   pullPolicy: IfNotPresent
 
 service:
@@ -12,9 +12,9 @@ service:
 
 podSecurityContext:
   runAsNonRoot: true
-  runAsUser: 101
-  runAsGroup: 101
-  fsGroup: 101
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
   seccompProfile:
     type: RuntimeDefault
 
@@ -35,11 +35,13 @@ resources:
 
 probes:
   readiness:
+    path: /readyz
     initialDelaySeconds: 5
     periodSeconds: 10
     timeoutSeconds: 2
     failureThreshold: 3
   liveness:
+    path: /healthz
     initialDelaySeconds: 15
     periodSeconds: 20
     timeoutSeconds: 2
@@ -61,6 +63,11 @@ serviceAccount:
   automountServiceAccountToken: false
 
 observability:
+  serviceMonitor:
+    enabled: false
+    labels: {}
+    interval: 30s
+    scrapeTimeout: 10s
   prometheusRule:
     enabled: false
     labels: {}
