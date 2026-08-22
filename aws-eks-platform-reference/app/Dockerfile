@@ -6,8 +6,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir --requirement requirements.txt \
+    && pip uninstall -y setuptools msgpack \
     && useradd --uid 10001 --create-home --shell /usr/sbin/nologin appuser
 
 COPY app.py .
