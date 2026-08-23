@@ -11,8 +11,10 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --requirement requirements.txt \
-    && pip uninstall -y setuptools msgpack \
+RUN pip install --no-cache-dir \
+        "setuptools>=78.1.1" \
+        "msgpack>=1.2.1" \
+    && pip install --no-cache-dir --requirement requirements.txt \
     && useradd --uid 10001 --create-home --shell /usr/sbin/nologin appuser
 
 COPY app.py .
