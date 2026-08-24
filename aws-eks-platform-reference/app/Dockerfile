@@ -1,4 +1,4 @@
-FROM python:3.13-slim
+FROM python:3.13.15-alpine3.24
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -6,16 +6,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-RUN apt-get update \
-    && apt-get upgrade -y --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk upgrade --no-cache \
+    && adduser -D -u 10001 -s /sbin/nologin appuser
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir \
-        "setuptools>=78.1.1" \
-        "msgpack>=1.2.1" \
-    && pip install --no-cache-dir --requirement requirements.txt \
-    && useradd --uid 10001 --create-home --shell /usr/sbin/nologin appuser
+RUN pip install --no-cache-dir --requirement requirements.txt
 
 COPY app.py .
 
