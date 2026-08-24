@@ -10,7 +10,8 @@ RUN apk upgrade --no-cache \
     && adduser -D -u 10001 -s /sbin/nologin appuser
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --requirement requirements.txt
+RUN pip install --no-cache-dir --requirement requirements.txt \
+    && python -m pip uninstall --yes pip
 
 COPY app.py .
 
