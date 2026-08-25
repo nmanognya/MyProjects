@@ -23,7 +23,7 @@ Environment-specific Helm overlays model dev, staging, and production release be
 
 The demo workload identity maps the `default/platform-demo` ServiceAccount to a dedicated IAM role and limits `cloudwatch:PutMetricData` to the `Portfolio/EKSPlatformDemo` custom metric namespace. No static AWS credentials are committed or mounted into the workload.
 
-The observability layer can optionally create a Prometheus Operator `ServiceMonitor` for the application's `/metrics` endpoint and `PrometheusRule` resources for platform-level availability/restart signals. Prometheus Operator resources remain opt-in so the chart can still render without those CRDs installed. The repository does not claim live traffic or deployed monitoring infrastructure.
+The observability layer can optionally create a Prometheus Operator `ServiceMonitor` for the application's `/metrics` endpoint and `PrometheusRule` resources for platform-level availability/restart signals plus application SLO recording and burn-rate alerts. The example uses real HTTP request/error/latency metrics, but makes no claim that the portfolio workload has achieved a production SLO.
 
 Operational design notes:
 
@@ -33,6 +33,7 @@ Operational design notes:
 - [EKS Pod Identity and least-privilege workload AWS access](./docs/workload-identity.md)
 - [Prometheus platform alerting, dependencies, and limitations](./docs/observability.md)
 - [Application metrics and ServiceMonitor design](./docs/application-observability.md)
+- [SLO objectives, error-budget math, and burn-rate alerts](./docs/slo-error-budget.md)
 - [Release promotion, deployment safety, and rollback strategy](./docs/release-strategy.md)
 
 ## Project structure
@@ -72,4 +73,4 @@ This repository is a portfolio project and reference architecture. It does not c
 
 ## Next implementation slice
 
-Use the application-level request/error/latency metrics to add a small SLO and error-budget example, plus post-deployment smoke checks that validate application behavior rather than only Kubernetes readiness.
+Add post-deployment smoke checks that validate application behavior after a Helm rollout, including health, readiness, expected response content, and metrics availability.
