@@ -74,3 +74,13 @@ observability:
     availabilityFor: 10m
     restartWindow: 15m
     restartThreshold: 3
+    slo:
+      availabilityTarget: 0.999
+      latencyTarget: 0.95
+      latencyThresholdSeconds: 0.5
+      fastBurnWindow: 5m
+      fastBurnFor: 5m
+      fastBurnErrorRatio: 0.0144
+      slowBurnWindow: 30m
+      slowBurnFor: 30m
+      slowBurnErrorRatio: 0.006
