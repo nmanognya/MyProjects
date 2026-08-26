@@ -4,12 +4,14 @@ on:
   pull_request:
     paths:
       - "aws-eks-platform-reference/helm/**"
+      - "aws-eks-platform-reference/scripts/**"
       - ".github/workflows/aws-eks-helm-ci.yml"
   push:
     branches:
       - main
     paths:
       - "aws-eks-platform-reference/helm/**"
+      - "aws-eks-platform-reference/scripts/**"
       - ".github/workflows/aws-eks-helm-ci.yml"
 
 permissions:
@@ -35,6 +37,12 @@ jobs:
         uses: azure/setup-helm@v5.0.0
         with:
           version: v3.20.2
+
+      - name: Validate release scripts
+        run: |
+          bash -n aws-eks-platform-reference/scripts/deploy-helm.sh
+          bash -n aws-eks-platform-reference/scripts/rollback-helm.sh
+          bash -n aws-eks-platform-reference/scripts/smoke-test.sh
 
       - name: Lint chart with environment values
         run: |
