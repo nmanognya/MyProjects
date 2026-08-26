@@ -6,6 +6,7 @@ IMAGE_TAG="${2:-}"
 RELEASE_NAME="${RELEASE_NAME:-platform-demo}"
 NAMESPACE="${NAMESPACE:-platform-demo}"
 TIMEOUT="${TIMEOUT:-5m}"
+RUN_SMOKE_TESTS="${RUN_SMOKE_TESTS:-true}"
 
 case "${ENVIRONMENT}" in
   dev|staging|prod) ;;
@@ -47,3 +48,9 @@ helm upgrade --install "${RELEASE_NAME}" "${CHART_DIR}" \
   --timeout "${TIMEOUT}"
 
 helm status "${RELEASE_NAME}" --namespace "${NAMESPACE}"
+
+if [[ "${RUN_SMOKE_TESTS}" == "true" ]]; then
+  RELEASE_NAME="${RELEASE_NAME}" NAMESPACE="${NAMESPACE}" "${SCRIPT_DIR}/smoke-test.sh"
+else
+  echo "Post-deployment smoke tests skipped because RUN_SMOKE_TESTS=${RUN_SMOKE_TESTS}."
+fi
