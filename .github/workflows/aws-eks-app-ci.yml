@@ -44,6 +44,23 @@ jobs:
       - name: Build container image
         run: docker build -t platform-demo:test aws-eks-platform-reference/app
 
+      - name: Generate SPDX SBOM
+        uses: anchore/sbom-action@v0.24.0
+        with:
+          image: platform-demo:test
+          format: spdx-json
+          output-file: /tmp/platform-demo.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: platform-demo-sbom
+          path: /tmp/platform-demo.spdx.json
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Scan container image with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
         with:
