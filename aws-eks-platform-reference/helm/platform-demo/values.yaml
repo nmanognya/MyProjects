@@ -3,6 +3,8 @@ replicaCount: 2
 image:
   repository: ghcr.io/nmanognya/platform-demo
   tag: "example"
+  digest: ""
+  requireDigest: false
   pullPolicy: IfNotPresent
 
 service:
