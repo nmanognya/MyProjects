@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ENVIRONMENT="${1:-}"
-IMAGE_TAG="${2:-}"
+IMAGE_REFERENCE="${2:-}"
 RELEASE_NAME="${RELEASE_NAME:-platform-demo}"
 NAMESPACE="${NAMESPACE:-platform-demo}"
 TIMEOUT="${TIMEOUT:-5m}"
@@ -11,13 +11,18 @@ RUN_SMOKE_TESTS="${RUN_SMOKE_TESTS:-true}"
 case "${ENVIRONMENT}" in
   dev|staging|prod) ;;
   *)
-    echo "Usage: $0 <dev|staging|prod> <immutable-image-tag>" >&2
+    echo "Usage: $0 <dev|staging|prod> <image-tag|sha256:digest>" >&2
     exit 64
     ;;
 esac
 
-if [[ -z "${IMAGE_TAG}" ]]; then
-  echo "An immutable image tag is required; do not promote 'latest'." >&2
+if [[ -z "${IMAGE_REFERENCE}" ]]; then
+  echo "An explicit image tag or sha256 digest is required." >&2
+  exit 64
+fi
+
+if [[ "${ENVIRONMENT}" == "prod" && ! "${IMAGE_REFERENCE}" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+  echo "Production deployments require a sha256 image digest." >&2
   exit 64
 fi
 
@@ -38,11 +43,16 @@ fi
 
 helm lint "${CHART_DIR}" --strict --values "${VALUES_FILE}"
 
+IMAGE_SET_ARGS=(--set-string "image.tag=${IMAGE_REFERENCE}")
+if [[ "${IMAGE_REFERENCE}" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+  IMAGE_SET_ARGS=(--set-string "image.digest=${IMAGE_REFERENCE}" --set-string "image.tag=")
+fi
+
 helm upgrade --install "${RELEASE_NAME}" "${CHART_DIR}" \
   --namespace "${NAMESPACE}" \
   --create-namespace \
   --values "${VALUES_FILE}" \
-  --set-string "image.tag=${IMAGE_TAG}" \
+  "${IMAGE_SET_ARGS[@]}" \
   --atomic \
   --wait \
   --timeout "${TIMEOUT}"
