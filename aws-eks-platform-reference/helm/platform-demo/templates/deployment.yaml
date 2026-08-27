@@ -28,7 +28,14 @@ spec:
 {{ toYaml .Values.podSecurityContext | indent 8 }}
       containers:
         - name: {{ .Chart.Name }}
+{{- if and .Values.image.requireDigest (not .Values.image.digest) }}
+{{- fail "image.digest is required when image.requireDigest=true" }}
+{{- end }}
+{{- if .Values.image.digest }}
+          image: "{{ .Values.image.repository }}@{{ .Values.image.digest }}"
+{{- else }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+{{- end }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext:
 {{ toYaml .Values.containerSecurityContext | indent 12 }}
