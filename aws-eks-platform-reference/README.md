@@ -15,11 +15,11 @@ A production-style portfolio reference architecture demonstrating how to provisi
 
 The Terraform layer includes multi-AZ VPC networking, configurable NAT topology, private EKS worker nodes, private-by-default Kubernetes API access, EKS control-plane logging, KMS envelope encryption for Kubernetes Secrets, managed node-group scaling, S3 remote-state configuration, EKS Pod Identity, and CI validation/security gates.
 
-The workload is now a small Flask service rather than an nginx placeholder. It provides dedicated liveness/readiness endpoints and exposes real Prometheus request-count and request-latency metrics. Its container runs as an unprivileged UID behind Gunicorn, and application CI runs unit tests, builds the image, and scans it with Trivy before changes can merge.
+The workload is a small Flask service with dedicated liveness/readiness endpoints and real Prometheus request-count and request-latency metrics. Its container runs as an unprivileged UID behind Gunicorn, and application CI runs unit tests, builds the image, generates an SPDX SBOM, and scans the image with Trivy.
 
 The Helm workload layer demonstrates a hardened non-root deployment, readiness/liveness probes, resource requests and limits, rolling-update controls, a PodDisruptionBudget, CPU-based HPA behavior, a dedicated ServiceAccount with token automount disabled, strict Helm linting, manifest rendering, and Trivy configuration scanning.
 
-Environment-specific Helm overlays model dev, staging, and production release behavior without duplicating the chart. CI renders and scans every overlay, while the deployment helper requires an explicit immutable image tag and uses Helm atomic/wait controls. A separate rollback helper restores an explicit Helm revision rather than hiding release history.
+Environment-specific Helm overlays model dev, staging, and production release behavior without duplicating the chart. CI renders and scans every overlay. The chart supports digest-pinned images, and the production overlay requires a SHA-256 digest so a moved tag cannot silently change the reviewed production artifact. Deployment uses Helm atomic/wait controls and post-deployment smoke checks; a separate rollback helper restores an explicit Helm revision.
 
 The demo workload identity maps the `default/platform-demo` ServiceAccount to a dedicated IAM role and limits `cloudwatch:PutMetricData` to the `Portfolio/EKSPlatformDemo` custom metric namespace. No static AWS credentials are committed or mounted into the workload.
 
@@ -35,6 +35,7 @@ Operational design notes:
 - [Application metrics and ServiceMonitor design](./docs/application-observability.md)
 - [SLO objectives, error-budget math, and burn-rate alerts](./docs/slo-error-budget.md)
 - [Release promotion, deployment safety, and rollback strategy](./docs/release-strategy.md)
+- [Container SBOM, digest pinning, and provenance roadmap](./docs/supply-chain.md)
 
 ## Project structure
 
@@ -62,7 +63,8 @@ aws-eks-platform-reference/
 │       └── templates/
 ├── scripts/
 │   ├── deploy-helm.sh
-│   └── rollback-helm.sh
+│   ├── rollback-helm.sh
+│   └── smoke-test.sh
 ├── docs/
 └── README.md
 ```
@@ -73,4 +75,4 @@ This repository is a portfolio project and reference architecture. It does not c
 
 ## Next implementation slice
 
-Add post-deployment smoke checks that validate application behavior after a Helm rollout, including health, readiness, expected response content, and metrics availability.
+Define a dedicated registry-backed release workflow that publishes one verified image, captures its registry digest, and adds build/SBOM attestations without granting package-write permissions to ordinary pull-request CI.
