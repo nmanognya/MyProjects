@@ -1,5 +1,8 @@
 replicaCount: 3
 
+image:
+  requireDigest: true
+
 resources:
   requests:
     cpu: 200m
