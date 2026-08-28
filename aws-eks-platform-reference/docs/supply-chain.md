@@ -4,7 +4,7 @@ This project treats the application image as a release artifact rather than as a
 
 ## Current controls
 
-### SBOM in CI
+### SBOM in PR CI
 
 Application CI builds the same local container image that is scanned by Trivy and generates an SPDX JSON software bill of materials (SBOM) from that image. The SBOM is retained as a workflow artifact for review and troubleshooting.
 
@@ -34,36 +34,71 @@ A digest identifies exact registry content. Reusing or moving a human-readable t
 
 `values-prod.yaml` sets `image.requireDigest: true`. The deployment helper also rejects production promotion unless the supplied image reference matches a SHA-256 digest.
 
-Development and staging may still use explicit tags for convenience, although digest promotion is preferred once a registry-backed release pipeline exists.
+Helm CI includes a negative policy test proving that production rendering fails without a digest, then supplies an illustrative validation digest so the rendered production manifests can still be linted and security-scanned. The validation digest is never published or presented as a real artifact.
 
-## Intended release flow
+Development and staging may still use explicit tags for convenience, although digest promotion is preferred for released artifacts.
 
-A complete registry-backed implementation should follow this sequence:
+### Registry-backed release workflow
 
-1. Build the container image once.
-2. Run tests and vulnerability scanning against that image.
-3. Generate the SBOM from the built image.
-4. Push the image to the approved registry.
-5. Capture the registry-provided `sha256` manifest digest.
-6. Generate build provenance and SBOM attestations for the pushed digest.
-7. Promote that same digest through staging and production.
-8. Verify provenance before admission or deployment when an enforcement mechanism is available.
+`.github/workflows/aws-eks-release.yml` is an intentionally separate, manually dispatched release boundary. It requires an explicit release version and a positive publish confirmation before it receives package-write and attestation permissions.
 
-This repository does not currently claim steps 4, 6, or 8. They require an intentional registry/release identity and an attestation-verification policy.
+The workflow is designed to:
+
+1. Build the application image once.
+2. Push that image once to `ghcr.io/nmanognya/platform-demo`.
+3. Capture the registry-provided manifest digest from the build/push step.
+4. Generate an SPDX JSON SBOM from the published digest.
+5. Attach GitHub build-provenance and SBOM attestations to that same digest in the registry.
+6. Write the exact digest into the workflow summary for downstream environment promotion.
+
+Normal pull-request CI remains read-only and cannot publish packages.
+
+The presence of this workflow demonstrates release design; this portfolio does not claim that a GHCR package or attestation has actually been published unless a release run is executed successfully.
+
+## Build once, promote by digest
+
+The intended promotion path is:
+
+```text
+source commit
+    |
+    v
+release workflow
+    |
+    +--> build/test image
+    +--> push GHCR tag
+    +--> capture sha256 digest
+    +--> generate SBOM
+    +--> attach provenance + SBOM attestations
+    |
+    v
+dev -> staging -> production
+        same sha256 digest
+```
+
+The artifact is not rebuilt between environments. Environment-specific Helm configuration changes around the artifact, while the image identity stays constant.
 
 ## Why attestations are not generated on every PR
 
-PR CI builds disposable validation images. Signing or attesting every test image creates evidence for artifacts that are never released. Provenance is most useful when attached to the artifact consumers will actually deploy and when consumers verify that provenance.
+PR CI builds disposable validation images. Attesting every test image creates evidence for artifacts that are never released and would require unnecessary write permissions in an untrusted review path.
 
-A future release workflow can use GitHub artifact attestations after an image is pushed and its registry digest is known. GitHub's attestation flow supports container-image provenance and SBOM attestations, and Kubernetes admission enforcement can be added later if the cluster policy requires it.
+The dedicated release workflow generates attestations only after the deployable artifact has a registry digest. Consumers can later verify those attestations before deployment or through an admission policy.
+
+## Verification and admission boundary
+
+Build provenance is useful only when a consumer verifies it. A production extension could verify the GHCR image with GitHub CLI before deployment or enforce provenance in Kubernetes with an admission controller.
+
+Admission enforcement is intentionally not enabled in this reference project yet. Adding enforcement without a live cluster trust policy, exception process, and recovery path would create the appearance of security without showing how the policy is operated.
 
 ## Tradeoffs and limitations
 
 - An SBOM improves component visibility but does not establish artifact authenticity.
 - Digest pinning establishes artifact identity but does not prove that the build process was trustworthy.
-- Attestations add provenance evidence but only create security value when verification policy is enforced.
-- Registry publication needs write permissions; those permissions should live only in a dedicated release workflow, not ordinary PR validation.
+- Attestations add provenance evidence, but their security value depends on verification policy.
+- Registry publication needs write permissions; those permissions live only in the dedicated release workflow, not ordinary PR validation.
+- A manually dispatched release makes the trust boundary easy to review but still requires operator discipline around version selection.
 - Digest pinning means each production rollout needs an explicit new digest, which is intentional change control rather than operational friction.
+- This portfolio does not claim a published GHCR image, successful attestation, or admission enforcement until those operations have actually run.
 
 ## Example production deployment
 
