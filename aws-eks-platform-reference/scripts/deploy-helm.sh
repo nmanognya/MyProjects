@@ -7,6 +7,7 @@ RELEASE_NAME="${RELEASE_NAME:-platform-demo}"
 NAMESPACE="${NAMESPACE:-platform-demo}"
 TIMEOUT="${TIMEOUT:-5m}"
 RUN_SMOKE_TESTS="${RUN_SMOKE_TESTS:-true}"
+VERIFY_PROVENANCE="${VERIFY_PROVENANCE:-true}"
 
 case "${ENVIRONMENT}" in
   dev|staging|prod) ;;
@@ -39,6 +40,12 @@ command -v helm >/dev/null 2>&1 || {
 if [[ ! -f "${VALUES_FILE}" ]]; then
   echo "Missing values file: ${VALUES_FILE}" >&2
   exit 66
+fi
+
+if [[ "${ENVIRONMENT}" == "prod" && "${VERIFY_PROVENANCE}" == "true" ]]; then
+  "${SCRIPT_DIR}/verify-release-attestation.sh" "${IMAGE_REFERENCE}"
+elif [[ "${ENVIRONMENT}" == "prod" ]]; then
+  echo "WARNING: production provenance verification explicitly disabled with VERIFY_PROVENANCE=${VERIFY_PROVENANCE}." >&2
 fi
 
 helm lint "${CHART_DIR}" --strict --values "${VALUES_FILE}"
