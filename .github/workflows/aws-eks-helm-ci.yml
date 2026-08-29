@@ -43,6 +43,14 @@ jobs:
           bash -n aws-eks-platform-reference/scripts/deploy-helm.sh
           bash -n aws-eks-platform-reference/scripts/rollback-helm.sh
           bash -n aws-eks-platform-reference/scripts/smoke-test.sh
+          bash -n aws-eks-platform-reference/scripts/verify-release-attestation.sh
+
+      - name: Verify attestation helper rejects invalid digest
+        run: |
+          if aws-eks-platform-reference/scripts/verify-release-attestation.sh not-a-digest; then
+            echo "Attestation helper unexpectedly accepted an invalid digest"
+            exit 1
+          fi
 
       - name: Verify production requires a digest
         if: matrix.environment == 'prod'
