@@ -82,23 +82,48 @@ The artifact is not rebuilt between environments. Environment-specific Helm conf
 
 PR CI builds disposable validation images. Attesting every test image creates evidence for artifacts that are never released and would require unnecessary write permissions in an untrusted review path.
 
-The dedicated release workflow generates attestations only after the deployable artifact has a registry digest. Consumers can later verify those attestations before deployment or through an admission policy.
+The dedicated release workflow generates attestations only after the deployable artifact has a registry digest.
+
+## Production provenance verification
+
+Production deployment now verifies build provenance before Helm is allowed to change the cluster.
+
+`scripts/verify-release-attestation.sh` calls GitHub CLI against the exact OCI digest and requires the attestation to be linked to this repository and signed by the dedicated release workflow:
+
+```bash
+gh attestation verify \
+  "oci://ghcr.io/nmanognya/platform-demo@sha256:<digest>" \
+  --repo nmanognya/MyProjects \
+  --signer-workflow nmanognya/MyProjects/.github/workflows/aws-eks-release.yml
+```
+
+This checks more than whether an attestation exists. It constrains the expected source repository and signer workflow so a digest attested by an unrelated workflow is not accepted as a production release.
+
+The verification environment must already be authenticated to GHCR when the image is private and must have GitHub CLI access to retrieve the attestation. In a real deployment platform, those credentials should be short-lived and scoped only to read the release artifact and provenance metadata.
+
+`deploy-helm.sh prod <sha256:digest>` performs this check by default before Helm lint or rollout. `VERIFY_PROVENANCE=false` is an explicit break-glass escape hatch for recovery scenarios; using it emits a warning and should require an external approval/audit trail in a real production system.
+
+PR CI does not pretend to verify a real release attestation because normal pull-request validation does not publish a production artifact. CI instead syntax-checks the verification helper and proves that malformed digest input is rejected.
 
 ## Verification and admission boundary
 
-Build provenance is useful only when a consumer verifies it. A production extension could verify the GHCR image with GitHub CLI before deployment or enforce provenance in Kubernetes with an admission controller.
+Pre-deployment provenance verification prevents the normal deployment helper from promoting an image whose expected GitHub build provenance cannot be verified.
 
-Admission enforcement is intentionally not enabled in this reference project yet. Adding enforcement without a live cluster trust policy, exception process, and recovery path would create the appearance of security without showing how the policy is operated.
+This is different from admission-time enforcement. A cluster administrator or another deployment path could still bypass the helper. A stronger production platform could enforce the same trust policy with a Kubernetes admission controller so unverified images are rejected by the API server regardless of deployment client.
+
+Admission enforcement is intentionally not enabled in this reference project yet. Adding it without a live cluster trust policy, exception process, and recovery path would create the appearance of security without showing how the policy is operated.
 
 ## Tradeoffs and limitations
 
 - An SBOM improves component visibility but does not establish artifact authenticity.
 - Digest pinning establishes artifact identity but does not prove that the build process was trustworthy.
 - Attestations add provenance evidence, but their security value depends on verification policy.
+- Pre-deployment verification protects the provided deployment path, not every possible Kubernetes write path.
 - Registry publication needs write permissions; those permissions live only in the dedicated release workflow, not ordinary PR validation.
+- The verification environment needs read/authentication access to the image and attestation metadata.
 - A manually dispatched release makes the trust boundary easy to review but still requires operator discipline around version selection.
 - Digest pinning means each production rollout needs an explicit new digest, which is intentional change control rather than operational friction.
-- This portfolio does not claim a published GHCR image, successful attestation, or admission enforcement until those operations have actually run.
+- This portfolio does not claim a published GHCR image, successful attestation verification against a real release, or admission enforcement until those operations have actually run.
 
 ## Example production deployment
 
