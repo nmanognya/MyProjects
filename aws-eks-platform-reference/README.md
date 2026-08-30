@@ -17,7 +17,7 @@ The Terraform layer includes multi-AZ VPC networking, configurable NAT topology,
 
 The workload is a small Flask service with dedicated liveness/readiness endpoints and real Prometheus request-count and request-latency metrics. Its container runs as an unprivileged UID behind Gunicorn, and application CI runs unit tests, builds the image, generates an SPDX SBOM, and scans the image with Trivy.
 
-The Helm workload layer demonstrates a hardened non-root deployment, readiness/liveness probes, resource requests and limits, rolling-update controls, a PodDisruptionBudget, CPU-based HPA behavior, a dedicated ServiceAccount with token automount disabled, strict Helm linting, manifest rendering, and Trivy configuration scanning.
+The Helm workload layer demonstrates a hardened non-root deployment, readiness/liveness probes, resource requests and limits, rolling-update controls, a PodDisruptionBudget, CPU-based HPA behavior, a dedicated ServiceAccount with token automount disabled, strict Helm linting, manifest rendering, Conftest/Rego policy enforcement, and Trivy configuration scanning.
 
 Environment-specific Helm overlays model dev, staging, and production release behavior without duplicating the chart. CI renders and scans every overlay. The chart supports digest-pinned images, and the production overlay requires a SHA-256 digest so a moved tag cannot silently change the reviewed production artifact. Deployment uses Helm atomic/wait controls and post-deployment smoke checks; a separate rollback helper restores an explicit Helm revision.
 
@@ -35,7 +35,8 @@ Operational design notes:
 - [Application metrics and ServiceMonitor design](./docs/application-observability.md)
 - [SLO objectives, error-budget math, and burn-rate alerts](./docs/slo-error-budget.md)
 - [Release promotion, deployment safety, and rollback strategy](./docs/release-strategy.md)
-- [Container SBOM, digest pinning, and provenance roadmap](./docs/supply-chain.md)
+- [Container SBOM, digest pinning, and provenance](./docs/supply-chain.md)
+- [Kubernetes policy-as-code controls and enforcement boundary](./docs/policy-as-code.md)
 
 ## Project structure
 
@@ -61,10 +62,14 @@ aws-eks-platform-reference/
 │       ├── values-staging.yaml
 │       ├── values-prod.yaml
 │       └── templates/
+├── policy/
+│   ├── kubernetes/
+│   └── fixtures/
 ├── scripts/
 │   ├── deploy-helm.sh
 │   ├── rollback-helm.sh
-│   └── smoke-test.sh
+│   ├── smoke-test.sh
+│   └── verify-release-attestation.sh
 ├── docs/
 └── README.md
 ```
@@ -75,4 +80,4 @@ This repository is a portfolio project and reference architecture. It does not c
 
 ## Next implementation slice
 
-Define a dedicated registry-backed release workflow that publishes one verified image, captures its registry digest, and adds build/SBOM attestations without granting package-write permissions to ordinary pull-request CI.
+This EKS reference is approaching a sensible stopping point. After the policy gate is validated, the next highest-value portfolio addition is a separate Azure or GitOps-focused project rather than continuing to expand this one indefinitely.
