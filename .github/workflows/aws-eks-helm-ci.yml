@@ -5,6 +5,7 @@ on:
     paths:
       - "aws-eks-platform-reference/helm/**"
       - "aws-eks-platform-reference/scripts/**"
+      - "aws-eks-platform-reference/policy/**"
       - ".github/workflows/aws-eks-helm-ci.yml"
   push:
     branches:
@@ -12,6 +13,7 @@ on:
     paths:
       - "aws-eks-platform-reference/helm/**"
       - "aws-eks-platform-reference/scripts/**"
+      - "aws-eks-platform-reference/policy/**"
       - ".github/workflows/aws-eks-helm-ci.yml"
 
 permissions:
@@ -94,6 +96,30 @@ jobs:
             --values "aws-eks-platform-reference/helm/platform-demo/values-${ENVIRONMENT}.yaml" \
             "${EXTRA_ARGS[@]}" \
             > "aws-eks-platform-reference/helm/rendered-${ENVIRONMENT}.yaml"
+
+      - name: Verify policy rejects insecure fixture
+        if: matrix.environment == 'dev'
+        run: |
+          if docker run --rm \
+            -v "$PWD:/project" \
+            -w /project \
+            openpolicyagent/conftest:v0.69.0 \
+            test aws-eks-platform-reference/policy/fixtures/insecure-deployment.yaml \
+            --policy aws-eks-platform-reference/policy/kubernetes; then
+            echo "Policy unexpectedly accepted the insecure fixture"
+            exit 1
+          fi
+
+      - name: Enforce Kubernetes policy as code
+        env:
+          ENVIRONMENT: ${{ matrix.environment }}
+        run: |
+          docker run --rm \
+            -v "$PWD:/project" \
+            -w /project \
+            openpolicyagent/conftest:v0.69.0 \
+            test "aws-eks-platform-reference/helm/rendered-${ENVIRONMENT}.yaml" \
+            --policy aws-eks-platform-reference/policy/kubernetes
 
       - name: Scan rendered Kubernetes manifests with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
