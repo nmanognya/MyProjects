@@ -1,0 +1,16 @@
+variable "aws_region" {
+  description = "AWS region for the development environment."
+  type        = string
+  default     = "us-east-1"
+}
+
+variable "availability_zones" {
+  description = "Availability zones used by the development VPC."
+  type        = list(string)
+  default     = ["us-east-1a", "us-east-1b"]
+
+  validation {
+    condition     = length(var.availability_zones) == 2
+    error_message = "The development example expects exactly two availability zones."
+  }
+}

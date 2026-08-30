@@ -1,0 +1,71 @@
+name: AWS EKS App CI
+
+on:
+  pull_request:
+    paths:
+      - "aws-eks-platform-reference/app/**"
+      - ".github/workflows/aws-eks-app-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "aws-eks-platform-reference/app/**"
+      - ".github/workflows/aws-eks-app-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            aws-eks-platform-reference/app/requirements.txt
+            aws-eks-platform-reference/app/requirements-dev.txt
+
+      - name: Install dependencies
+        working-directory: aws-eks-platform-reference/app
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Run application tests
+        working-directory: aws-eks-platform-reference/app
+        run: pytest -q
+
+      - name: Build container image
+        run: docker build -t platform-demo:test aws-eks-platform-reference/app
+
+      - name: Generate SPDX SBOM
+        uses: anchore/sbom-action@v0.24.0
+        with:
+          image: platform-demo:test
+          format: spdx-json
+          output-file: /tmp/platform-demo.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: platform-demo-sbom
+          path: /tmp/platform-demo.spdx.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Scan container image with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: platform-demo:test
+          version: v0.74.0
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true

@@ -1,0 +1,25 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+.terraformrc
+terraform.rc
+
+# Variable files may contain environment-specific or sensitive values
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+
+# Local credentials and environment files
+.env
+.env.*
+!.env.example
+kubeconfig*
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
