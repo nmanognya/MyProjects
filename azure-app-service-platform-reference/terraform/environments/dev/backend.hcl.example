@@ -1,0 +1,7 @@
+# Non-secret backend configuration for the dev environment.
+# Authenticate separately with Microsoft Entra ID / OIDC; do not store credentials here.
+resource_group_name  = "rg-terraform-state-example"
+storage_account_name = "sttfstateexample01"
+container_name       = "tfstate"
+key                  = "azure-app-service-platform-reference/dev.tfstate"
+use_azuread_auth     = true
