@@ -16,9 +16,9 @@ locals {
 module "platform" {
   source = "../../modules/platform"
 
-  name_prefix        = "pf${var.name_suffix}dev"
-  location           = var.location
+  name_prefix         = "pf${var.name_suffix}dev"
+  location            = var.location
   resource_group_name = azurerm_resource_group.this.name
-  app_service_sku    = "P0v3"
-  tags               = local.tags
+  app_service_sku     = "P0v3"
+  tags                = local.tags
 }
