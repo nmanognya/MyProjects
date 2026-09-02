@@ -63,9 +63,9 @@ resource "azurerm_linux_web_app" "this" {
   location                  = var.location
   resource_group_name       = var.resource_group_name
   service_plan_id           = azurerm_service_plan.this.id
-  https_only                 = true
+  https_only                = true
   virtual_network_subnet_id = azurerm_subnet.app_integration.id
-  tags                       = var.tags
+  tags                      = var.tags
 
   identity {
     type = "SystemAssigned"
