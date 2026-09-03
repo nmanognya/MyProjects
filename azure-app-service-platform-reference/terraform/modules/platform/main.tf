@@ -85,6 +85,31 @@ resource "azurerm_linux_web_app" "this" {
   }
 }
 
+resource "azurerm_linux_web_app_slot" "staging" {
+  name                      = "staging"
+  app_service_id            = azurerm_linux_web_app.this.id
+  https_only                = true
+  virtual_network_subnet_id = azurerm_subnet.app_integration.id
+  tags                      = var.tags
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  site_config {
+    minimum_tls_version = "1.2"
+    always_on           = true
+
+    application_stack {
+      python_version = "3.13"
+    }
+  }
+
+  app_settings = {
+    APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.this.connection_string
+  }
+}
+
 resource "azurerm_key_vault" "this" {
   name                          = substr(replace("${var.name_prefix}-kv", "-", ""), 0, 24)
   location                      = var.location
@@ -107,6 +132,12 @@ resource "azurerm_role_assignment" "web_key_vault_secrets" {
   scope                = azurerm_key_vault.this.id
   role_definition_name = "Key Vault Secrets User"
   principal_id         = azurerm_linux_web_app.this.identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "staging_key_vault_secrets" {
+  scope                = azurerm_key_vault.this.id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = azurerm_linux_web_app_slot.staging.identity[0].principal_id
 }
 
 resource "azurerm_private_dns_zone" "key_vault" {
