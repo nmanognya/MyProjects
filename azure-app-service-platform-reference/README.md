@@ -1,10 +1,10 @@
 # Azure App Service Platform Reference
 
-A production-style Azure platform reference that demonstrates secure application hosting without Kubernetes. The project focuses on private networking, managed identity, Key Vault access, Azure Monitor, Terraform, and GitHub Actions using workload identity federation.
+A production-style Azure platform reference that demonstrates secure application hosting without Kubernetes. The project focuses on private networking, managed identity, Key Vault access, Azure Monitor, Terraform, deployment slots, and GitHub Actions using workload identity federation.
 
 ## Why this project exists
 
-The AWS EKS reference demonstrates Kubernetes-heavy platform engineering. This project intentionally exercises a different operating model: a managed Azure PaaS platform with fewer cluster responsibilities and stronger emphasis on identity, network isolation, secretless application access, and platform observability.
+The AWS EKS reference demonstrates Kubernetes-heavy platform engineering. This project intentionally exercises a different operating model: a managed Azure PaaS platform with fewer cluster responsibilities and stronger emphasis on identity, network isolation, secretless application access, release controls, and platform observability.
 
 ## Target architecture
 
@@ -23,6 +23,7 @@ Terraform
   |    +-- Private endpoint subnet
   +-- App Service Plan
   +-- Linux Web App + system-assigned managed identity
+  |    +-- staging deployment slot + separate managed identity
   +-- Key Vault + RBAC
   +-- Private Endpoint + Private DNS
   +-- Log Analytics Workspace
@@ -38,8 +39,9 @@ Terraform
 - Use reusable Terraform modules and environment-level composition rather than copy/paste infrastructure.
 - Validate Terraform formatting, syntax, linting, and IaC security in pull requests without touching live state.
 - Use GitHub OIDC for deployment identity rather than long-lived Azure client secrets.
+- Separate release validation from production traffic cutover with an App Service staging slot.
 
-## Planned structure
+## Structure
 
 ```text
 azure-app-service-platform-reference/
@@ -49,12 +51,21 @@ azure-app-service-platform-reference/
 │   └── environments/
 │       └── dev/
 ├── docs/
-│   └── architecture.md
+│   ├── architecture.md
+│   ├── deployment-identity.md
+│   ├── deployment-slots.md
+│   └── state-management.md
 └── README.md
 ```
+
+## Release model
+
+The staging deployment slot provides a controlled promotion boundary: deploy to staging, validate the candidate, approve the change, then swap staging into production. Because the slot has its own managed identity, its Key Vault access is explicit rather than inherited by assumption.
+
+See [`docs/deployment-slots.md`](docs/deployment-slots.md) for promotion, rollback, identity, networking, and configuration tradeoffs.
 
 ## Scope boundaries
 
 This is a portfolio reference implementation. It does not claim that the infrastructure has been applied to a production Azure subscription, that real traffic has been served, or that measured reliability/cost outcomes were achieved.
 
-The first iteration is deliberately small: one regional application platform, one environment composition, private Key Vault access, managed identity, and monitoring. Multi-region DR, Front Door/WAF, deployment slots, and release automation are later extensions only if they add interview value.
+The project deliberately remains single-region and small. Front Door/WAF, multi-region DR, and broader release automation should only be added when they demonstrate a distinct operational decision rather than more boilerplate.
