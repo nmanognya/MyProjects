@@ -37,6 +37,34 @@ variable "app_service_sku" {
   default     = "P0v3"
 }
 
+variable "http_5xx_alert_threshold" {
+  description = "Five-minute HTTP 5xx count that triggers the production App Service alert. Tune from observed traffic before using this in production."
+  type        = number
+  default     = 5
+
+  validation {
+    condition     = var.http_5xx_alert_threshold > 0
+    error_message = "http_5xx_alert_threshold must be greater than zero."
+  }
+}
+
+variable "response_time_alert_threshold_seconds" {
+  description = "Fifteen-minute average response-time threshold in seconds for the production App Service alert. Tune from observed latency before using this in production."
+  type        = number
+  default     = 2
+
+  validation {
+    condition     = var.response_time_alert_threshold_seconds > 0
+    error_message = "response_time_alert_threshold_seconds must be greater than zero."
+  }
+}
+
+variable "alert_action_group_ids" {
+  description = "Azure Monitor Action Group resource IDs that receive alert notifications. Empty by default so the module does not invent notification destinations."
+  type        = list(string)
+  default     = []
+}
+
 variable "tags" {
   description = "Tags applied to resources where supported."
   type        = map(string)

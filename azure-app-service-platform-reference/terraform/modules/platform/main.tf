@@ -110,6 +110,64 @@ resource "azurerm_linux_web_app_slot" "staging" {
   }
 }
 
+resource "azurerm_monitor_metric_alert" "http_5xx" {
+  name                = "${var.name_prefix}-http-5xx"
+  resource_group_name = var.resource_group_name
+  scopes              = [azurerm_linux_web_app.this.id]
+  description         = "Detects sustained HTTP 5xx responses from the production App Service slot."
+  severity            = 1
+  frequency           = "PT5M"
+  window_size         = "PT5M"
+  auto_mitigate       = true
+  enabled             = true
+  tags                = var.tags
+
+  criteria {
+    metric_namespace = "Microsoft.Web/sites"
+    metric_name      = "Http5xx"
+    aggregation      = "Total"
+    operator         = "GreaterThanOrEqual"
+    threshold        = var.http_5xx_alert_threshold
+  }
+
+  dynamic "action" {
+    for_each = toset(var.alert_action_group_ids)
+
+    content {
+      action_group_id = action.value
+    }
+  }
+}
+
+resource "azurerm_monitor_metric_alert" "response_time" {
+  name                = "${var.name_prefix}-response-time"
+  resource_group_name = var.resource_group_name
+  scopes              = [azurerm_linux_web_app.this.id]
+  description         = "Detects elevated average response time from the production App Service slot."
+  severity            = 2
+  frequency           = "PT5M"
+  window_size         = "PT15M"
+  auto_mitigate       = true
+  enabled             = true
+  tags                = var.tags
+
+  criteria {
+    metric_namespace = "Microsoft.Web/sites"
+    metric_name      = "AverageResponseTime"
+    aggregation      = "Average"
+    operator         = "GreaterThanOrEqual"
+    threshold        = var.response_time_alert_threshold_seconds
+  }
+
+  dynamic "action" {
+    for_each = toset(var.alert_action_group_ids)
+
+    content {
+      action_group_id = action.value
+    }
+  }
+}
+
 resource "azurerm_key_vault" "this" {
   name                          = substr(replace("${var.name_prefix}-kv", "-", ""), 0, 24)
   location                      = var.location
