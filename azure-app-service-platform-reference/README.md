@@ -28,6 +28,7 @@ Terraform
   +-- Private Endpoint + Private DNS
   +-- Log Analytics Workspace
   +-- Application Insights
+  +-- Azure Monitor 5xx + response-time alerts
 ```
 
 ## Engineering goals
@@ -36,6 +37,7 @@ Terraform
 - Keep Key Vault off the public network path and resolve it through Private Link.
 - Separate ingress concerns from outbound VNet integration instead of treating them as the same control.
 - Centralize application/platform telemetry in Log Analytics and Application Insights.
+- Alert on production-facing service symptoms with configurable thresholds and external notification routing.
 - Use reusable Terraform modules and environment-level composition rather than copy/paste infrastructure.
 - Validate Terraform formatting, syntax, linting, and IaC security in pull requests without touching live state.
 - Use GitHub OIDC for deployment identity rather than long-lived Azure client secrets.
@@ -54,6 +56,7 @@ azure-app-service-platform-reference/
 │   ├── architecture.md
 │   ├── deployment-identity.md
 │   ├── deployment-slots.md
+│   ├── monitoring-alerting.md
 │   └── state-management.md
 └── README.md
 ```
@@ -63,6 +66,12 @@ azure-app-service-platform-reference/
 The staging deployment slot provides a controlled promotion boundary: deploy to staging, validate the candidate, approve the change, then swap staging into production. Because the slot has its own managed identity, its Key Vault access is explicit rather than inherited by assumption.
 
 See [`docs/deployment-slots.md`](docs/deployment-slots.md) for promotion, rollback, identity, networking, and configuration tradeoffs.
+
+## Monitoring model
+
+Azure Monitor metric alerts cover production HTTP 5xx volume and average response time. Thresholds are configurable and notification routing is supplied through existing Action Group IDs so the reusable module does not invent contacts or paging integrations.
+
+See [`docs/monitoring-alerting.md`](docs/monitoring-alerting.md) for threshold ownership, alert limitations, routing, and production refinements.
 
 ## Scope boundaries
 
