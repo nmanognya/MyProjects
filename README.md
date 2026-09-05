@@ -7,6 +7,7 @@ Production-style portfolio projects demonstrating practical DevOps, Site Reliabi
 | Project | Focus | Status |
 |---|---|---|
 | [`aws-eks-platform-reference`](./aws-eks-platform-reference/) | AWS, EKS, Terraform, Kubernetes, Helm, GitHub Actions, DevSecOps | In progress |
+| [`azure-app-service-platform-reference`](./azure-app-service-platform-reference/) | Azure, App Service, Terraform, Private Link, Managed Identity, Key Vault, Azure Monitor | In progress |
 
 ## Portfolio Principles
 

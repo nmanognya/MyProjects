@@ -1,0 +1,140 @@
+name: Azure App Service Terraform Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: "Create a plan or apply the reviewed plan"
+        required: true
+        default: plan
+        type: choice
+        options:
+          - plan
+          - apply
+      name_suffix:
+        description: "Globally unique suffix used by the dev environment"
+        required: true
+        type: string
+      confirm_apply:
+        description: "Type APPLY when operation=apply"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: azure-app-service-platform-dev
+  cancel-in-progress: false
+
+env:
+  TF_IN_AUTOMATION: "true"
+  ARM_USE_OIDC: "true"
+  ARM_USE_AZUREAD: "true"
+  ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+jobs:
+  plan:
+    name: Plan dev infrastructure
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: azure-app-service-platform-reference/terraform/environments/dev
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.13.2
+
+      - name: Authenticate to Azure with GitHub OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Write ephemeral backend configuration
+        run: |
+          cat > backend.hcl <<EOF
+          resource_group_name  = "${{ vars.AZURE_TFSTATE_RESOURCE_GROUP }}"
+          storage_account_name = "${{ vars.AZURE_TFSTATE_STORAGE_ACCOUNT }}"
+          container_name       = "${{ vars.AZURE_TFSTATE_CONTAINER }}"
+          key                  = "azure-app-service-platform-reference/dev.tfstate"
+          use_azuread_auth     = true
+          use_oidc             = true
+          EOF
+
+      - name: Initialize remote backend
+        run: terraform init -input=false -backend-config=backend.hcl
+
+      - name: Create immutable Terraform plan
+        run: terraform plan -input=false -out=tfplan -var="name_suffix=${{ inputs.name_suffix }}"
+
+      - name: Render human-readable plan
+        run: terraform show -no-color tfplan > tfplan.txt
+
+      - name: Upload reviewed plan artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: azure-dev-tfplan-${{ github.run_id }}
+          path: |
+            azure-app-service-platform-reference/terraform/environments/dev/tfplan
+            azure-app-service-platform-reference/terraform/environments/dev/tfplan.txt
+          retention-days: 1
+          if-no-files-found: error
+
+  apply:
+    name: Apply reviewed dev plan
+    if: ${{ inputs.operation == 'apply' && inputs.confirm_apply == 'APPLY' }}
+    needs: plan
+    runs-on: ubuntu-latest
+    environment: azure-dev
+    defaults:
+      run:
+        working-directory: azure-app-service-platform-reference/terraform/environments/dev
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.13.2
+
+      - name: Authenticate to Azure with GitHub OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Write ephemeral backend configuration
+        run: |
+          cat > backend.hcl <<EOF
+          resource_group_name  = "${{ vars.AZURE_TFSTATE_RESOURCE_GROUP }}"
+          storage_account_name = "${{ vars.AZURE_TFSTATE_STORAGE_ACCOUNT }}"
+          container_name       = "${{ vars.AZURE_TFSTATE_CONTAINER }}"
+          key                  = "azure-app-service-platform-reference/dev.tfstate"
+          use_azuread_auth     = true
+          use_oidc             = true
+          EOF
+
+      - name: Initialize remote backend
+        run: terraform init -input=false -backend-config=backend.hcl
+
+      - name: Download reviewed plan artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: azure-dev-tfplan-${{ github.run_id }}
+          path: azure-app-service-platform-reference/terraform/environments/dev
+
+      - name: Apply reviewed Terraform plan
+        run: terraform apply -input=false -auto-approve tfplan

@@ -1,0 +1,65 @@
+name: Azure App Service Terraform CI
+
+on:
+  pull_request:
+    paths:
+      - "azure-app-service-platform-reference/**"
+      - ".github/workflows/azure-app-service-terraform-ci.yml"
+      - ".github/workflows/azure-app-service-slot-promote.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "azure-app-service-platform-reference/**"
+      - ".github/workflows/azure-app-service-terraform-ci.yml"
+      - ".github/workflows/azure-app-service-slot-promote.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: azure-app-service-platform-reference
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.13.2
+
+      - name: Check Terraform formatting
+        run: terraform fmt -check -recursive terraform
+
+      - name: Initialize dev configuration without remote backend
+        run: terraform -chdir=terraform/environments/dev init -backend=false -input=false
+
+      - name: Validate dev configuration
+        run: terraform -chdir=terraform/environments/dev validate
+
+      - name: Set up TFLint
+        uses: terraform-linters/setup-tflint@v6.3.0
+
+      - name: Initialize TFLint
+        run: tflint --init
+
+      - name: Lint Terraform
+        run: tflint --recursive
+
+      - name: Validate operational scripts
+        run: bash -n scripts/smoke-test.sh
+
+      - name: Scan IaC for HIGH and CRITICAL findings
+        working-directory: ${{ github.workspace }}
+        run: |
+          docker run --rm \
+            -v "${PWD}:/workspace" \
+            aquasec/trivy:0.74.0 config \
+            --severity HIGH,CRITICAL \
+            --exit-code 1 \
+            /workspace/azure-app-service-platform-reference

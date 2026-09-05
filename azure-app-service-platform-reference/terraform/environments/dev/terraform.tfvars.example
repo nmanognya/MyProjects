@@ -1,0 +1,5 @@
+# Pick a short suffix that makes globally scoped resource names unique.
+name_suffix = "demo01"
+
+# Change only when intentionally testing another region.
+location = "eastus2"
