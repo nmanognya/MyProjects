@@ -1,0 +1,112 @@
+name: Azure App Service Slot Promotion
+
+on:
+  workflow_dispatch:
+    inputs:
+      resource_group:
+        description: "Resource group containing the App Service"
+        required: true
+        type: string
+      app_name:
+        description: "App Service name"
+        required: true
+        type: string
+      expected_text:
+        description: "Optional literal response text required by smoke tests"
+        required: false
+        type: string
+      confirm_promote:
+        description: "Type PROMOTE to allow the staging-to-production swap"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: azure-app-service-platform-dev-promotion
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Validate and promote staging slot
+    if: ${{ inputs.confirm_promote == 'PROMOTE' }}
+    runs-on: ubuntu-latest
+    environment: azure-dev
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Authenticate to Azure with GitHub OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Resolve staging endpoint
+        id: staging
+        shell: bash
+        run: |
+          set -euo pipefail
+          hostname="$(az webapp deployment slot show \
+            --resource-group '${{ inputs.resource_group }}' \
+            --name '${{ inputs.app_name }}' \
+            --slot staging \
+            --query defaultHostName \
+            --output tsv)"
+          test -n "$hostname"
+          echo "url=https://${hostname}" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke-test staging
+        run: >-
+          bash azure-app-service-platform-reference/scripts/smoke-test.sh
+          '${{ steps.staging.outputs.url }}'
+          '${{ inputs.expected_text }}'
+
+      - name: Swap staging into production
+        run: |
+          az webapp deployment slot swap \
+            --resource-group '${{ inputs.resource_group }}' \
+            --name '${{ inputs.app_name }}' \
+            --slot staging \
+            --target-slot production
+
+      - name: Resolve production endpoint
+        id: production
+        shell: bash
+        run: |
+          set -euo pipefail
+          hostname="$(az webapp show \
+            --resource-group '${{ inputs.resource_group }}' \
+            --name '${{ inputs.app_name }}' \
+            --query defaultHostName \
+            --output tsv)"
+          test -n "$hostname"
+          echo "url=https://${hostname}" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke-test production
+        id: production_smoke
+        continue-on-error: true
+        run: >-
+          bash azure-app-service-platform-reference/scripts/smoke-test.sh
+          '${{ steps.production.outputs.url }}'
+          '${{ inputs.expected_text }}'
+
+      - name: Swap back after failed production validation
+        if: ${{ steps.production_smoke.outcome == 'failure' }}
+        run: |
+          echo "Production smoke validation failed; attempting slot swap-back." >&2
+          az webapp deployment slot swap \
+            --resource-group '${{ inputs.resource_group }}' \
+            --name '${{ inputs.app_name }}' \
+            --slot staging \
+            --target-slot production
+
+      - name: Fail promotion after rollback attempt
+        if: ${{ steps.production_smoke.outcome == 'failure' }}
+        run: |
+          echo "Promotion failed production smoke validation. A swap-back was attempted; verify application and external state before retrying." >&2
+          exit 1
