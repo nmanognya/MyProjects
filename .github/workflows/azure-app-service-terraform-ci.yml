@@ -5,12 +5,14 @@ on:
     paths:
       - "azure-app-service-platform-reference/**"
       - ".github/workflows/azure-app-service-terraform-ci.yml"
+      - ".github/workflows/azure-app-service-slot-promote.yml"
   push:
     branches:
       - main
     paths:
       - "azure-app-service-platform-reference/**"
       - ".github/workflows/azure-app-service-terraform-ci.yml"
+      - ".github/workflows/azure-app-service-slot-promote.yml"
 
 permissions:
   contents: read
@@ -48,6 +50,9 @@ jobs:
 
       - name: Lint Terraform
         run: tflint --recursive
+
+      - name: Validate operational scripts
+        run: bash -n scripts/smoke-test.sh
 
       - name: Scan IaC for HIGH and CRITICAL findings
         working-directory: ${{ github.workspace }}
