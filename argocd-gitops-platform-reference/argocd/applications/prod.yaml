@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: podinfo-prod
+  namespace: argocd
+spec:
+  project: podinfo-platform
+  source:
+    repoURL: https://github.com/nmanognya/MyProjects.git
+    targetRevision: main
+    path: argocd-gitops-platform-reference/workloads/podinfo/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: podinfo-prod
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true
+  revisionHistoryLimit: 20
