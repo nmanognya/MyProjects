@@ -3,6 +3,9 @@ kind: Kustomization
 namespace: podinfo-prod
 resources:
   - ../../base
+images:
+  - name: ghcr.io/stefanprodan/podinfo
+    newTag: 6.15.0
 patches:
   - target:
       kind: Deployment

@@ -3,5 +3,8 @@ kind: Kustomization
 namespace: podinfo-staging
 resources:
   - ../../base
+images:
+  - name: ghcr.io/stefanprodan/podinfo
+    newTag: 6.15.0
 commonLabels:
   environment: staging
