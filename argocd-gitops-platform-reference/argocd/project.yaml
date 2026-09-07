@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: podinfo-platform
+  namespace: argocd
+spec:
+  description: GitOps boundary for the podinfo platform reference
+  sourceRepos:
+    - https://github.com/nmanognya/MyProjects.git
+  destinations:
+    - namespace: podinfo-dev
+      server: https://kubernetes.default.svc
+    - namespace: podinfo-staging
+      server: https://kubernetes.default.svc
+    - namespace: podinfo-prod
+      server: https://kubernetes.default.svc
+  orphanedResources:
+    warn: true
+  namespaceResourceBlacklist:
+    - group: ""
+      kind: ResourceQuota
