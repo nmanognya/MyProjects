@@ -10,17 +10,19 @@ fail() {
 
 for env in dev staging prod; do
   overlay="${ROOT}/workloads/podinfo/overlays/${env}"
+  kustomization="${overlay}/kustomization.yaml"
   rendered="$(kubectl kustomize "${overlay}")"
 
   grep -q 'kind: Deployment' <<<"${rendered}" || fail "${env}: Deployment missing"
   grep -q 'kind: Service' <<<"${rendered}" || fail "${env}: Service missing"
   grep -q 'kind: PodDisruptionBudget' <<<"${rendered}" || fail "${env}: PDB missing"
   grep -q "namespace: podinfo-${env}" <<<"${rendered}" || fail "${env}: namespace transform missing"
+  grep -q 'name: ghcr.io/stefanprodan/podinfo' "${kustomization}" || fail "${env}: image override missing"
+  [[ "$(grep -c 'newTag:' "${kustomization}")" -eq 1 ]] || fail "${env}: expected exactly one newTag"
 
   if grep -Eq 'image: .*:(latest|main|master)([[:space:]]|$)' <<<"${rendered}"; then
     fail "${env}: mutable branch/latest-style image reference is forbidden"
   fi
-
 done
 
 for env in dev staging; do

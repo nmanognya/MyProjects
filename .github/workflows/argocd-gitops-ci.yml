@@ -28,6 +28,15 @@ jobs:
         with:
           version: v1.35.3
 
+      - name: Validate scripts
+        run: |
+          python3 -m py_compile argocd-gitops-platform-reference/scripts/promote-image.py
+          bash -n argocd-gitops-platform-reference/scripts/test-promotion.sh
+          bash -n argocd-gitops-platform-reference/scripts/validate-gitops.sh
+
+      - name: Test image promotion contract
+        run: bash argocd-gitops-platform-reference/scripts/test-promotion.sh
+
       - name: Validate GitOps contracts
         run: bash argocd-gitops-platform-reference/scripts/validate-gitops.sh
 
