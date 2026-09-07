@@ -2,24 +2,37 @@
 
 ## Promotion principle
 
-Promotion changes Git desired state; it does not run `kubectl set image`, patch live Deployments, or rebuild the artifact for each environment. A releasable image version is selected once, then the environment overlay is changed through review.
+Promotion changes Git desired state; it does not run `kubectl set image`, patch live Deployments, or rebuild the artifact for each environment. Each environment overlay owns its selected image tag, so promotion is visible as a small reviewed Git diff.
 
 For a real service, prefer an immutable registry digest when the release pipeline exposes one. This demo workload uses a versioned public image tag because the repository does not own or publish the podinfo artifact.
+
+## Promotion helper
+
+Use the helper to copy the exact release tag from one environment overlay to the next:
+
+```bash
+python3 argocd-gitops-platform-reference/scripts/promote-image.py dev staging
+python3 argocd-gitops-platform-reference/scripts/promote-image.py staging prod
+```
+
+The helper permits only adjacent `dev -> staging` and `staging -> prod` moves, rejects non-version release tags, and changes only the target overlay's `newTag` value. It does not commit, merge, sync Argo CD, or bypass review. `--check` validates a proposed promotion without writing files.
+
+CI exercises the helper against a temporary copy of the project and proves that a non-adjacent `dev -> prod` promotion is rejected.
 
 ## Dev to staging
 
 1. Confirm the candidate has reconciled successfully in dev.
-2. Change only the staging overlay's image reference or release-specific configuration.
-3. Open a PR and review the rendered diff and CI checks.
-4. Merge the PR.
+2. Run `promote-image.py dev staging`.
+3. Review the resulting staging-only Git diff and CI checks.
+4. Open and merge the promotion PR after review.
 5. Argo CD detects the new `main` revision and automatically reconciles staging.
 6. Check Application health and workload behavior before proposing production promotion.
 
 ## Staging to production
 
-1. Promote the exact candidate already validated in staging; do not rebuild it for production.
-2. Change only the production overlay.
-3. Review the Git diff, CI output, operational risk, and rollback compatibility.
+1. Confirm the exact candidate has been validated in staging; do not rebuild it for production.
+2. Run `promote-image.py staging prod`.
+3. Review the production-only Git diff, CI output, operational risk, and rollback compatibility.
 4. Merge the PR. Production becomes `OutOfSync` because automatic sync is disabled.
 5. An operator reviews the Argo CD diff and triggers production sync.
 6. Verify Argo CD reports `Synced` and `Healthy`, then perform service-specific smoke checks.
