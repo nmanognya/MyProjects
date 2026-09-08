@@ -1,0 +1,56 @@
+name: Jenkins Reference CI
+
+on:
+  pull_request:
+    paths:
+      - 'jenkins-container-delivery-reference/**'
+      - '.github/workflows/jenkins-reference-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'jenkins-container-delivery-reference/**'
+      - '.github/workflows/jenkins-reference-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile and test service
+        working-directory: jenkins-container-delivery-reference/app
+        run: |
+          python -m compileall -q .
+          python -m unittest -v test_app.py
+
+      - name: Validate shell scripts
+        run: bash -n jenkins-container-delivery-reference/scripts/smoke-test.sh
+
+      - name: Validate Jenkins control contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          file='jenkins-container-delivery-reference/Jenkinsfile'
+          grep -Fq 'disableConcurrentBuilds()' "$file"
+          grep -Fq 'timeout(time: 30, unit: '\''MINUTES'\'')' "$file"
+          grep -Fq 'trivy image --exit-code 1 --severity HIGH,CRITICAL' "$file"
+          grep -Fq 'withCredentials([' "$file"
+          grep -Fq "branch 'main'" "$file"
+          grep -Fq 'archiveArtifacts' "$file"
+
+      - name: Build container
+        working-directory: jenkins-container-delivery-reference
+        run: docker build --tag jenkins-delivery-reference:test .
+
+      - name: Smoke test container
+        working-directory: jenkins-container-delivery-reference
+        run: |
+          set -euo pipefail
+          container_id="$(docker run --detach --rm --publish 127.0.0.1::8080 jenkins-delivery-reference:test)"
+          trap 'docker stop "$container_id" >/dev/null 2>&1 || true' EXIT
+          host_port="$(docker inspect --format='{{(index (index .NetworkSettings.Ports "8080/tcp") 0).HostPort}}' "$container_id")"
+          ./scripts/smoke-test.sh "http://127.0.0.1:${host_port}/healthz"
