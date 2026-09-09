@@ -58,7 +58,7 @@ pipeline {
             container_id="$(docker run --detach --rm --publish 127.0.0.1::8080 "$IMAGE_TAG")"
             host_port="$(docker inspect --format='{{(index (index .NetworkSettings.Ports "8080/tcp") 0).HostPort}}' "$container_id")"
             trap 'docker stop "$container_id" >/dev/null 2>&1 || true' EXIT
-            ./scripts/smoke-test.sh "http://127.0.0.1:${host_port}/healthz"
+            bash scripts/smoke-test.sh "http://127.0.0.1:${host_port}/healthz"
           '''
         }
       }
