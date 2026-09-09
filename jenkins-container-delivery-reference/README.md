@@ -87,7 +87,7 @@ cd ..
 docker build -t jenkins-delivery-reference:local .
 container_id="$(docker run -d --rm -p 127.0.0.1::8080 jenkins-delivery-reference:local)"
 host_port="$(docker inspect --format='{{(index (index .NetworkSettings.Ports "8080/tcp") 0).HostPort}}' "$container_id")"
-./scripts/smoke-test.sh "http://127.0.0.1:${host_port}/healthz"
+bash scripts/smoke-test.sh "http://127.0.0.1:${host_port}/healthz"
 docker stop "$container_id"
 ```
 
