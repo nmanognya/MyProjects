@@ -1,0 +1,97 @@
+pipeline {
+  agent { label 'docker-linux' }
+
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+    buildDiscarder(logRotator(numToKeepStr: '20'))
+    timeout(time: 30, unit: 'MINUTES')
+    skipDefaultCheckout(true)
+  }
+
+  parameters {
+    string(name: 'IMAGE_REPOSITORY', defaultValue: 'ghcr.io/example/jenkins-delivery-demo', description: 'OCI repository used for tagged builds')
+    booleanParam(name: 'PUBLISH_IMAGE', defaultValue: false, description: 'Push the tested image and archive its immutable digest')
+  }
+
+  environment {
+    PROJECT_DIR = 'jenkins-container-delivery-reference'
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Unit test') {
+      steps {
+        dir("${PROJECT_DIR}/app") {
+          sh 'python -m compileall -q .'
+          sh 'python -m unittest -v test_app.py'
+        }
+      }
+    }
+
+    stage('Build image') {
+      steps {
+        dir("${PROJECT_DIR}") {
+          script {
+            env.IMAGE_TAG = "${params.IMAGE_REPOSITORY}:${env.GIT_COMMIT}"
+          }
+          sh 'docker build --pull --tag "$IMAGE_TAG" .'
+        }
+      }
+    }
+
+    stage('Scan image') {
+      steps {
+        sh 'trivy image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed "$IMAGE_TAG"'
+      }
+    }
+
+    stage('Smoke test') {
+      steps {
+        dir("${PROJECT_DIR}") {
+          sh '''
+            container_id="$(docker run --detach --rm --publish 127.0.0.1::8080 "$IMAGE_TAG")"
+            host_port="$(docker inspect --format='{{(index (index .NetworkSettings.Ports "8080/tcp") 0).HostPort}}' "$container_id")"
+            trap 'docker stop "$container_id" >/dev/null 2>&1 || true' EXIT
+            bash scripts/smoke-test.sh "http://127.0.0.1:${host_port}/healthz"
+          '''
+        }
+      }
+    }
+
+    stage('Publish immutable artifact') {
+      when {
+        allOf {
+          branch 'main'
+          expression { return params.PUBLISH_IMAGE }
+        }
+      }
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'container-registry', usernameVariable: 'REGISTRY_USER', passwordVariable: 'REGISTRY_PASSWORD')]) {
+          sh '''
+            registry="${IMAGE_REPOSITORY%%/*}"
+            printf '%s' "$REGISTRY_PASSWORD" | docker login "$registry" --username "$REGISTRY_USER" --password-stdin
+            docker push "$IMAGE_TAG"
+            digest_ref="$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE_TAG")"
+            test -n "$digest_ref"
+            printf 'commit=%s\nimage=%s\n' "$GIT_COMMIT" "$digest_ref" > release-metadata.txt
+            docker logout "$registry"
+          '''
+        }
+        archiveArtifacts artifacts: 'release-metadata.txt', fingerprint: true, onlyIfSuccessful: true
+      }
+    }
+  }
+
+  post {
+    always {
+      sh 'docker image rm --force "$IMAGE_TAG" >/dev/null 2>&1 || true'
+      deleteDir()
+    }
+  }
+}
